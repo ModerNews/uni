@@ -46,12 +46,55 @@ pub mod algos {
     use super::object::{Cpu, Process};
 
     pub trait RoundRobin {
-        fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>);
+        fn next_loop(
+            &mut self,
+            arrival: Option<Process>,
+            timer: u32,
+            quantum_time: u32,
+        ) -> (u32, Option<u32>);
     }
 
     impl RoundRobin for Cpu {
-        fn next_loop(&mut self, _arrival: Option<Process>, _timer: u32) -> (u32, Option<u32>) {
-            unimplemented!("RoundRobin")
+        fn next_loop(
+            &mut self,
+            arrival: Option<Process>,
+            timer: u32,
+            quantum_time: u32,
+        ) -> (u32, Option<u32>) {
+            let mut quantum_time = quantum_time;
+            let mut pid = None;
+            if let Some(process) = self.stack.last() {
+                // Check if the process was done in the previous loop
+                // remove process as first step instead of last for logging purposes
+                if process.burst == 0 {
+                    self.stack.pop();
+                }
+            }
+            if let Some(process) = self.stack.first_mut() {
+                // Simulate processing of the process
+                pid = Some(process.pid);
+                if process.burst > 0 {
+                    // This if block prevents the process from going into negative burst
+                    // (and CPU clock from idling for a remainder of the quantum time)
+                    if process.burst > quantum_time {
+                        process.burst -= quantum_time;
+                    } else {
+                        quantum_time = process.burst;
+                        process.burst = 0;
+                    }
+                }
+
+                // Move the process to the end of the stack
+                // Put freshly arrived process in stack, before the currently processed one
+                if let Some(process) = arrival {
+                    self.stack.push(process);
+                }
+                let process = self.stack.remove(0);
+                self.stack.push(process);
+            } else if let Some(process) = arrival {
+                self.stack.push(process);
+            }
+            (timer + quantum_time, pid)
         }
     }
 
@@ -60,8 +103,16 @@ pub mod algos {
     }
 
     impl FirstComeFirstServe for Cpu {
+        /// First Come First Serve algorithm
+        ///
+        /// # Arguments
+        /// * `arrival` - Option<Process> - Process to be added to the stack
+        /// * `timer` - u32 - Current timer state
+        ///
+        /// # Returns
+        /// * (new_timer, Option<pid>) - (u32, Option<u32>) - New timer state and PID of the process that was processed
         fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>) {
-            // let current_process = self.stack.first_mut();
+            // Check if the process was done in the previous loop
             // remove process as first step instead of last for logging purposes
             if let Some(process) = self.stack.first_mut() {
                 if process.burst == 0 {

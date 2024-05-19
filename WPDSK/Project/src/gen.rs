@@ -26,6 +26,36 @@ pub mod data_generator {
         numbers.into_iter().take(n).collect()
     }
 
+    fn generic_test_data() -> Vec<Process> {
+        vec![
+            Process {
+                pid: 1,
+                arrival: 0,
+                burst: 4,
+            },
+            Process {
+                pid: 2,
+                arrival: 1,
+                burst: 3,
+            },
+            Process {
+                pid: 3,
+                arrival: 2,
+                burst: 1,
+            },
+            Process {
+                pid: 4,
+                arrival: 3,
+                burst: 2,
+            },
+            Process {
+                pid: 5,
+                arrival: 4,
+                burst: 5,
+            },
+        ]
+    }
+
     #[derive(Debug)]
     pub struct OutputProcessEntry {
         pid: u32,
@@ -40,6 +70,16 @@ pub mod data_generator {
     pub struct Feeder {
         processes: Vec<Process>,
         functions: Vec<TraitSpecificFunction>,
+    }
+    
+    impl Default for Feeder {
+        fn default() -> Self {
+            let processes = generic_test_data();
+            Feeder {
+                processes,
+                functions: Vec::new(),
+            }
+        }
     }
 
     impl Feeder {
@@ -101,8 +141,8 @@ pub mod data_generator {
         }
 
         pub fn feed(&self) {
-            println!("Test data:\n{}", self.parse_test_data());
             for function in self.functions.iter() {
+                println!("Test data:\n{}", self.parse_test_data());
                 println!(
                     "Preparing to test for {:?}",
                     std::any::type_name_of_val(function)
@@ -128,33 +168,33 @@ pub mod data_generator {
                     }
                     previous_pid = current_pid;
                     (timer, current_pid) = (function)(&mut cpu, arrival, timer);
-                    // FIX: This behavior is correct for implementations that work one process at a time 
+                    // FIX: This behavior is correct for implementations that work one process at a time
                     // However it will break with implementations such as Round Robin
-                    if current_pid != previous_pid {
-                        if let Some(pid) = previous_pid {
-                            let old_process =
-                                self.processes.iter().find(|&x| x.pid == pid).cloned();
-                            let waiting = if let Some(process) = old_process {
-                                // timer - 2 is the last time the process was executed
-                                (timer - 2) - process.arrival - process.burst
-                            } else {
-                                0
-                            };
-                            let turnaround = if let Some(process) = old_process {
-                                // timer - 2 is the last time the process was executed
-                                (timer - 2) - process.arrival
-                            } else {
-                                0
-                            };
-                            output.push(OutputProcessEntry {
-                                pid,
-                                arrival: old_process.unwrap().arrival,
-                                burst: old_process.unwrap().burst,
-                                turnaround,
-                                waiting,
-                            });
-                        }
-                    }
+                    // if current_pid != previous_pid {
+                    //     if let Some(pid) = previous_pid {
+                    //         let old_process =
+                    //             self.processes.iter().find(|&x| x.pid == pid).cloned();
+                    //         let waiting = if let Some(process) = old_process {
+                    //             // timer - 2 is the last time the process was executed
+                    //             (timer - 2) - process.arrival - process.burst
+                    //         } else {
+                    //             0
+                    //         };
+                    //         let turnaround = if let Some(process) = old_process {
+                    //             // timer - 2 is the last time the process was executed
+                    //             (timer - 2) - process.arrival
+                    //         } else {
+                    //             0
+                    //         };
+                    //         output.push(OutputProcessEntry {
+                    //             pid,
+                    //             arrival: old_process.unwrap().arrival,
+                    //             burst: old_process.unwrap().burst,
+                    //             turnaround,
+                    //             waiting,
+                    //         });
+                    //     }
+                    // }
                     println!("{}", cpu.process_table(&(&timer - 1)).join("\n"));
                 }
                 println!("{}", Feeder::parse_output(output));
