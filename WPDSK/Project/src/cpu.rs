@@ -1,5 +1,10 @@
 pub mod object {
-    use crate::gen::data_generator::Process;
+    #[derive(Copy, Clone, Debug)]
+    pub struct Process {
+        pub pid: u32,
+        pub arrival: u32,
+        pub burst: u32,
+    }
 
     pub struct Cpu {
         pub stack: Vec<Process>,
@@ -38,8 +43,7 @@ pub mod object {
 }
 
 pub mod algos {
-    use super::object::Cpu;
-    use crate::gen::data_generator::Process;
+    use super::object::{Cpu, Process};
 
     pub trait RoundRobin {
         fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>);
