@@ -47,9 +47,6 @@ pub mod object {
 } */
 
 pub mod cpu_algos {
-
-    use std::any::Any;
-
     #[derive(Copy, Clone, Debug)]
     pub struct Process {
         pub pid: u32,
@@ -71,7 +68,7 @@ pub mod cpu_algos {
                     process.pid,
                     process.arrival,
                     stack
-.iter()
+                        .iter()
                         .map(|x| x.pid.to_string())
                         .collect::<Vec<String>>()
                         .join(","),
@@ -104,20 +101,20 @@ pub mod cpu_algos {
         /// * `timer` - u32 - Current timer state
         ///
         /// # Returns
-        /// * (new_timer, Option<pid>) - (u32, Option<u32>) - New timer state and PID of the process that was processed
+        /// * (new_timer, Option<pid>) - (u32, Option<u32>) - New timer state and PID of the process, if the process was finished (in previous loop)
         fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>) {
             // Check if the process was done in the previous loop
             // remove process as first step instead of last for logging purposes
+            let mut pid = None;
             if let Some(process) = self.stack.first_mut() {
                 if process.burst == 0 {
-                    self.stack.remove(0);
+                    let process = self.stack.remove(0);
+                    pid = Some(process.pid);
                 }
             }
-            let mut pid = None;
 
             // reborrow the first element in case previous if-let block removed it
             if let Some(process) = self.stack.first_mut() {
-                pid = Some(process.pid);
                 if process.burst > 0 {
                     process.burst -= 1;
                 }
@@ -138,6 +135,7 @@ pub mod cpu_algos {
         pub stack: Vec<Process>,
         pub quantum_time: u32,
         pub quantum_timer: u32,
+        pub stall_arrival: Option<Process>,
     }
 
     impl RoundRobin {
@@ -146,6 +144,7 @@ pub mod cpu_algos {
                 stack: Vec::new(),
                 quantum_time,
                 quantum_timer: 0,
+                stall_arrival: None,
             }
         }
     }
@@ -153,39 +152,35 @@ pub mod cpu_algos {
     impl Cpu for RoundRobin {
         fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>) {
             let mut pid = None;
-            let mut quantum_time = self.quantum_time;
-            if let Some(process) = self.stack.last() {
+            let quantum_time = self.quantum_time;
+            if let Some(&process) = self.stack.first() {
                 // Check if the process was done in the previous loop
                 // remove process as first step instead of last for logging purposes
+
+                // if (self.quantum_timer % quantum_time == 0) && self.quantum_timer != 0 {
                 if process.burst == 0 {
-                    self.stack.pop();
+                    let process = self.stack.remove(0);
+                    // Reset timer to prevent it from messing up, when the process is done in under
+                    // k * quantum_time, where k is a positive
+                    self.quantum_timer = 0;
+                    pid = Some(process.pid);
+                } else if self.quantum_timer == quantum_time {
+                    self.quantum_timer = 0;
+                    let process = self.stack.remove(0);
+                    self.stack.push(process);
                 }
             }
             if let Some(process) = self.stack.first_mut() {
                 // Simulate processing of the process
-                pid = Some(process.pid);
                 if process.burst > 0 {
-                    // This if block prevents the process from going into negative burst
-                    // (and CPU clock from idling for a remainder of the quantum time)
-                    if process.burst > quantum_time {
-                        process.burst -= quantum_time;
-                    } else {
-                        quantum_time = process.burst;
-                        process.burst = 0;
-                    }
+                    process.burst -= 1;
+                    self.quantum_timer += 1;
                 }
-
-                // Move the process to the end of the stack
-                // Put freshly arrived process in stack, before the currently processed one
-                if let Some(process) = arrival {
-                    self.stack.push(process);
-                }
-                let process = self.stack.remove(0);
-                self.stack.push(process);
-            } else if let Some(process) = arrival {
+            }
+            if let Some(process) = arrival {
                 self.stack.push(process);
             }
-            (timer + quantum_time, pid)
+            (timer + 1, pid)
         }
 
         fn get_stack(&self) -> &Vec<Process> {

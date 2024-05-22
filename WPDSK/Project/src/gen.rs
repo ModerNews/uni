@@ -134,9 +134,12 @@ pub mod data_generator {
         }
 
         fn parse_output(output: Vec<OutputProcessEntry>) -> String {
+            let mut output = output;
+            // Sort by PID, for algorithms other than FCFS
+            output.sort_by(|a, b| a.pid.cmp(&b.pid));
             let mut result = String::new();
             result.push_str("PID;Arrival;Burst;Turnaround;Waiting\n");
-            for entry in output {
+            for entry in  output{
                 result.push_str(&format!(
                     "{};{};{};{};{}\n",
                     entry.pid, entry.arrival, entry.burst, entry.turnaround, entry.waiting
@@ -172,37 +175,58 @@ pub mod data_generator {
                     }
                     previous_pid = current_pid;
                     (timer, current_pid) = cpu.next_loop(arrival, timer);
-                    // FIX: This behavior is correct for implementations that work one process at a time
-                    // However it will break with implementations such as Round Robin
-                    if current_pid != previous_pid {
-                        if let Some(pid) = previous_pid {
-                            let old_process =
-                                self.processes.iter().find(|&x| x.pid == pid).cloned();
-                            let waiting = if let Some(process) = old_process {
-                                // timer - 2 is the last time the process was executed
-                                (timer - 2) - process.arrival - process.burst
-                            } else {
-                                0
-                            };
-                            let turnaround = if let Some(process) = old_process {
-                                // timer - 2 is the last time the process was executed
-                                (timer - 2) - process.arrival
-                            } else {
-                                0
-                            };
-                            output.push(OutputProcessEntry {
-                                pid,
-                                arrival: old_process.unwrap().arrival,
-                                burst: old_process.unwrap().burst,
-                                turnaround,
-                                waiting,
-                            });
-                        }
-                    }
                     println!(
                         "{}",
                         cpu::cpu_algos::process_table(cpu.get_stack(), &(&timer - 1)).join("\n")
                     );
+                    if let Some(pid) = current_pid {
+                        let process = self.processes.iter().find(|&x| x.pid == pid).cloned();
+                        let turnaround = if let Some(process) = process {
+                            (timer - 2) - process.arrival
+                        } else {
+                            0
+                        };
+                        let waiting = if let Some(process) = process {
+                            turnaround - process.burst
+                        } else {
+                            0
+                        };
+                        output.push(OutputProcessEntry {
+                            pid,
+                            arrival: process.unwrap().arrival,
+                            burst: process.unwrap().burst,
+                            turnaround,
+                            waiting,
+                        });
+                    }
+
+                    // FIX: This behavior is correct for implementations that work one process at a time
+                    // However it will break with implementations such as Round Robin
+                    // if current_pid != previous_pid {
+                    //     if let Some(pid) = previous_pid {
+                    //         let old_process =
+                    //             self.processes.iter().find(|&x| x.pid == pid).cloned();
+                    //         let waiting = if let Some(process) = old_process {
+                    //             // timer - 2 is the last time the process was executed
+                    //             (timer - 2) - process.arrival - process.burst
+                    //         } else {
+                    //             0
+                    //         };
+                    //         let turnaround = if let Some(process) = old_process {
+                    //             // timer - 2 is the last time the process was executed
+                    //             (timer - 2) - process.arrival
+                    //         } else {
+                    //             0
+                    //         };
+                    //         output.push(OutputProcessEntry {
+                    //             pid,
+                    //             arrival: old_process.unwrap().arrival,
+                    //             burst: old_process.unwrap().burst,
+                    //             turnaround,
+                    //             waiting,
+                    //         });
+                    //     }
+                    // }
                 }
                 println!("{}", Feeder::parse_output(output));
             }

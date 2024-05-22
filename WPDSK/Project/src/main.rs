@@ -3,14 +3,14 @@ mod gen;
 
 // use cpu::algos::{FirstComeFirstServe, RoundRobin};
 // use cpu::object::Process;
-use cpu::cpu_algos::{Cpu, FirstComeFirstServe, RoundRobin};
+use cpu::cpu_algos::{FirstComeFirstServe, RoundRobin};
 use gen::data_generator::Feeder;
 
 fn main() {
     // let mut feeder = Feeder::new(5, 0, 10, 5.0, 1.0);
     let mut feeder = Feeder::default();
     feeder.add_function(Box::new(FirstComeFirstServe::new()));
-    // feeder.add_function(RoundRobin::new(2));
+    feeder.add_function(Box::new(RoundRobin::new(2)));
     feeder.feed();
 }
 // ############################
