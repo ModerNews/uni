@@ -3,16 +3,46 @@ mod gen;
 
 // use cpu::algos::{FirstComeFirstServe, RoundRobin};
 // use cpu::object::Process;
-use cpu::cpu_algos::{FirstComeFirstServe, RoundRobin};
-use gen::data_generator::Feeder;
+use cpu::paging::{FirstInFirstOut, LeastFrequentlyUsed, PagingAlgorithm};
+use cpu::scheduler::{FirstComeFirstServe, RoundRobin};
+use gen::scheduler_data_generator::Feeder;
 
-fn main() {
+/* fn main() {
     // let mut feeder = Feeder::new(5, 0, 10, 5.0, 1.0);
     let mut feeder = Feeder::default();
     feeder.add_function(Box::new(FirstComeFirstServe::new()));
     feeder.add_function(Box::new(RoundRobin::new(2)));
     feeder.feed();
+} */
+
+fn generic_test_data() -> Vec<u32> {
+    vec![1, 2, 3, 2, 4, 2, 1, 3, 2, 1]
 }
+
+fn main() {
+    let mut fifo = FirstInFirstOut::new(3);
+    println!("Algorithm: {:?}", fifo);
+    let mut total_page_faults = 0;
+    for page in generic_test_data() {
+        if fifo.page_in(page) {
+            total_page_faults += 1;
+        }
+        println!("Page: {}, State: {:?}", page, fifo)
+    }
+    println!("Total page faults: {}", total_page_faults);
+
+let mut fifo = LeastFrequentlyUsed::new(3);
+    println!("Algorithm: {:?}", fifo);
+    let mut total_page_faults = 0;
+    for page in generic_test_data() {
+        if fifo.page_in(page) {
+            total_page_faults += 1;
+        }
+        println!("Page: {}, State: {:?}", page, fifo)
+    }
+    println!("Total page faults: {}", total_page_faults);
+}
+
 // ############################
 //          Test cases
 // ############################

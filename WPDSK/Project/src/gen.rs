@@ -1,4 +1,4 @@
-pub mod data_generator {
+pub mod scheduler_data_generator {
     use std::any::Any;
 
     // use log::{debug, info, warn};
@@ -7,9 +7,8 @@ pub mod data_generator {
     use rand_distr::{Distribution, Normal};
 
     use crate::cpu;
-    use crate::cpu::cpu_algos::{FirstComeFirstServe, RoundRobin};
-    // use crate::cpu::object::{Cpu, Process};
-    use crate::cpu::cpu_algos::{Cpu, Process};
+    use crate::cpu::scheduler::{Cpu, Process};
+    use crate::cpu::scheduler::{FirstComeFirstServe, RoundRobin};
 
     pub fn generate_duration_times(n: usize, avg: f64, std_dev: f64) -> Vec<u32> {
         let mut rng = thread_rng();
@@ -139,7 +138,7 @@ pub mod data_generator {
             output.sort_by(|a, b| a.pid.cmp(&b.pid));
             let mut result = String::new();
             result.push_str("PID;Arrival;Burst;Turnaround;Waiting\n");
-            for entry in  output{
+            for entry in output {
                 result.push_str(&format!(
                     "{};{};{};{};{}\n",
                     entry.pid, entry.arrival, entry.burst, entry.turnaround, entry.waiting
@@ -158,9 +157,8 @@ pub mod data_generator {
                 let mut timer = 0; // Reset timer for each Algorithm
                 let mut arrivals = self.processes.clone();
                 let mut output: Vec<OutputProcessEntry> = Vec::new();
-                println!("{}", cpu::cpu_algos::process_table_header());
+                println!("{}", cpu::scheduler::process_table_header());
                 let mut current_pid = None;
-                let mut previous_pid;
                 loop {
                     let mut arrival = arrivals.first().cloned();
                     if arrival.is_none() && cpu.get_stack().is_empty() {
@@ -173,11 +171,10 @@ pub mod data_generator {
                             arrival = None;
                         }
                     }
-                    previous_pid = current_pid;
                     (timer, current_pid) = cpu.next_loop(arrival, timer);
                     println!(
                         "{}",
-                        cpu::cpu_algos::process_table(cpu.get_stack(), &(&timer - 1)).join("\n")
+                        cpu::scheduler::process_table(cpu.get_stack(), &(&timer - 1)).join("\n")
                     );
                     if let Some(pid) = current_pid {
                         let process = self.processes.iter().find(|&x| x.pid == pid).cloned();
@@ -199,34 +196,6 @@ pub mod data_generator {
                             waiting,
                         });
                     }
-
-                    // FIX: This behavior is correct for implementations that work one process at a time
-                    // However it will break with implementations such as Round Robin
-                    // if current_pid != previous_pid {
-                    //     if let Some(pid) = previous_pid {
-                    //         let old_process =
-                    //             self.processes.iter().find(|&x| x.pid == pid).cloned();
-                    //         let waiting = if let Some(process) = old_process {
-                    //             // timer - 2 is the last time the process was executed
-                    //             (timer - 2) - process.arrival - process.burst
-                    //         } else {
-                    //             0
-                    //         };
-                    //         let turnaround = if let Some(process) = old_process {
-                    //             // timer - 2 is the last time the process was executed
-                    //             (timer - 2) - process.arrival
-                    //         } else {
-                    //             0
-                    //         };
-                    //         output.push(OutputProcessEntry {
-                    //             pid,
-                    //             arrival: old_process.unwrap().arrival,
-                    //             burst: old_process.unwrap().burst,
-                    //             turnaround,
-                    //             waiting,
-                    //         });
-                    //     }
-                    // }
                 }
                 println!("{}", Feeder::parse_output(output));
             }
