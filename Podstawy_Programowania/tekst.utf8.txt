@@ -1,0 +1,34 @@
+Niniejszy tekst jest tekstem przykładowym. Jego zadaniem jest unaocznić
+ilość znaków mieszczących się najednej stronie obliczeniowej oraz
+wyjaśnić, dlaczego cenę za tłumaczenie oblicza się na podstawie
+liczby stron obliczeniowych, a nie na podstawie liczby stron A4.
+
+Jako "znak na stronie" uważa się wpisanie
+każdego klawisza z klawiatury w edytorze tekstu na
+komputerze. Znakiem jest każda litera, cyfra, znaki
+specjalne, kropka, tabulator, a nawet spacja. Jako
+jedną stronę obliczeniową uważa się stronę,
+na której występuje 1500 znaków. Takie obliczenie
+obowiązuje w tłumaczeniu zwykłym, a więc niepodbitym
+okrągłą pieczęcią tłumacza przysięgłego. Niektórzy
+tłumacze stosują również numerację 1800 znaków. W
+przypadku tłumaczeń poświadczonych (błędnie nazywanych
+"przysięgłymi")  podbitych     pieczęcią   tłumacza   i
+opatrzonych   formułą poświadczającą (informacją
+poświadczającą, że tłumaczenie jest zgodne z
+oryginałem, za stronę obliczeniową uważa się stronę,
+na której występuje 1125 znaków.
+
+Na niniejszej stronie jak dotąd zapisano 1117 znaków, wliczając
+niniejsze zdanie do kropki oraz włącznie z cyfrą zapisaną w tym
+zdaniu. Tłumaczenie poświadczone zawiera więc mniej znaków niż
+tłumaczenie zwykłe, co wynika z Rozporządzenia Ministra Sprawiedliwości
+o zawodzie tłumacza przysięgłego, jednakże koszt za oba rodzaje
+tłumaczenia jestczęsto jednakowy, bądź podobny. Na niniejszej
+stronie jak dotąd zapisano 1488 znaków, wliczając niniejsze zdanie
+do kropki oraz włącznie z liczbą zapisaną w tym zdaniu. Jak widać,
+strona licząca 1500 znaków nie jest tak obszerna, jak zapisana strona
+A4. Na stronie zastosowanomałe przerwy pomiędzy wierszami (interlinia
+pojedyncza).  Na  niniejszej  stronie  zapisano  jak  dotąd  1800
+znaków, wliczając   niniejsze  zdanie  do  kropki    oraz
+włącznie  z liczbą zapisaną w tym zdaniu.
