@@ -6,9 +6,9 @@ pub mod scheduler_data_generator {
     use rand::thread_rng;
     use rand_distr::{Distribution, Normal};
 
-    use crate::cpu;
-    use crate::cpu::scheduler::{Cpu, Process};
-    use crate::cpu::scheduler::{FirstComeFirstServe, RoundRobin};
+    use crate::cpu_scheduler;
+    use crate::cpu_scheduler::scheduler::{Cpu, Process};
+    use crate::DEBUG;
 
     pub fn generate_duration_times(n: usize, avg: f64, std_dev: f64) -> Vec<u32> {
         let mut rng = thread_rng();
@@ -69,7 +69,7 @@ pub mod scheduler_data_generator {
         waiting: u32,
     }
 
-    pub fn parse_test_data(processes: &Vec<Process>) -> String {
+    pub fn parse_test_data(processes: &[Process]) -> String {
         let mut result = String::new();
         result.push_str("PID;Arrival;Burst\n");
         for process in processes.iter() {
@@ -84,7 +84,7 @@ pub mod scheduler_data_generator {
     // type TraitSpecificFunction = fn(&mut Cpu, Option<Process>, u32) -> (u32, Option<u32>);
 
     pub struct Feeder {
-        processes: Vec<Process>,
+        pub processes: Vec<Process>,
         functions: Vec<Box<dyn Cpu>>,
     }
 
@@ -138,18 +138,23 @@ pub mod scheduler_data_generator {
             output.sort_by(|a, b| a.pid.cmp(&b.pid));
             let mut result = String::new();
             result.push_str("PID;Arrival;Burst;Turnaround;Waiting\n");
+            let avg_turnaround = output.iter().map(|x| x.turnaround).sum::<u32>() as f64 / output.len() as f64;
+            let avg_waiting = output.iter().map(|x| x.waiting).sum::<u32>() as f64 / output.len() as f64;
             for entry in output {
                 result.push_str(&format!(
                     "{};{};{};{};{}\n",
                     entry.pid, entry.arrival, entry.burst, entry.turnaround, entry.waiting
                 ));
             }
+            result.push_str(&format!(
+                "Average;--;--;{};{}\n",
+                avg_turnaround, avg_waiting
+            ));
             result
         }
 
         pub fn feed(&mut self) {
             for cpu in self.functions.iter_mut() {
-                println!("Test data:\n{}", parse_test_data(&self.processes));
                 // println!(
                 //     "Preparing to test for {:?}",
                 //     std::any::type_name_of_val(function)
@@ -157,25 +162,29 @@ pub mod scheduler_data_generator {
                 let mut timer = 0; // Reset timer for each Algorithm
                 let mut arrivals = self.processes.clone();
                 let mut output: Vec<OutputProcessEntry> = Vec::new();
-                println!("{}", cpu::scheduler::process_table_header());
-                let mut current_pid = None;
+                if DEBUG {
+                    println!("{}", cpu_scheduler::scheduler::process_table_header());
+                }
+                let mut current_pid;
                 loop {
-                    let mut arrival = arrivals.first().cloned();
-                    if arrival.is_none() && cpu.get_stack().is_empty() {
+                    // let mut arrival = arrivals.first().cloned();
+                    if arrivals.is_empty() && cpu.get_stack().is_empty() {
                         break;
                     }
-                    if let Some(process) = arrival {
-                        if process.arrival == timer {
-                            arrivals.remove(0);
-                        } else {
-                            arrival = None;
-                        }
+                    let arrivals_now = arrivals
+                        .iter()
+                        .filter(|x| x.arrival == timer)
+                        .map(|x| x.to_owned())
+                        .collect(); // Gather all processes that have arrived
+                    arrivals.retain(|x| x.arrival != timer); // Remove all processes that have arrived
+                    (timer, current_pid) = cpu.next_loop(arrivals_now, timer);
+                    if DEBUG {
+                        println!(
+                            "{}",
+                            cpu_scheduler::scheduler::process_table(cpu.get_stack(), &(&timer - 1))
+                                .join("\n")
+                        );
                     }
-                    (timer, current_pid) = cpu.next_loop(arrival, timer);
-                    println!(
-                        "{}",
-                        cpu::scheduler::process_table(cpu.get_stack(), &(&timer - 1)).join("\n")
-                    );
                     if let Some(pid) = current_pid {
                         let process = self.processes.iter().find(|&x| x.pid == pid).cloned();
                         let turnaround = if let Some(process) = process {

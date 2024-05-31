@@ -1,106 +1,3 @@
-pub mod paging {
-    use std::{collections::HashMap, usize};
-
-    pub trait PagingAlgorithm {
-        fn page_in(&mut self, page: u32) -> bool;
-    }
-
-    #[derive(Debug)]
-    pub struct FirstInFirstOut {
-        pub queue: Vec<Option<u32>>,
-        pub page_size: usize,
-    }
-
-    impl FirstInFirstOut {
-        pub fn new(memory_size: usize) -> FirstInFirstOut {
-            /* FirstInFirstOut {
-                queue: vec![None; memory_size].into_boxed_slice(),
-            } */
-            FirstInFirstOut {
-                queue: Vec::new(),
-                page_size: memory_size,
-            }
-        }
-    }
-
-    impl PagingAlgorithm for FirstInFirstOut {
-        /// Add a new page to the page frame
-        /// According to FirstInFirstOut algorithm
-        ///
-        /// # Arguments
-        /// * `page` - u32 - Page number to be added
-        ///
-        /// # Returns
-        /// * bool - True if algorith yielded a Page Fault, False otherwise
-        fn page_in(&mut self, page: u32) -> bool {
-            if self.page_size != self.queue.len() {
-                // There is no additional check for page existence needed, due to FIFO nature
-                self.queue.push(Some(page));
-                true
-            } else if self.queue.contains(&Some(page)) {
-                false
-            } else {
-                self.queue.remove(0);
-                self.queue.push(Some(page));
-                true
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct LeastFrequentlyUsed {
-        pub queue: Vec<Option<u32>>,
-        pub frequency: HashMap<u32, u32>,
-        pub page_size: usize,
-    }
-
-    impl LeastFrequentlyUsed {
-        pub fn new(memory_size: usize) -> LeastFrequentlyUsed {
-            LeastFrequentlyUsed {
-                queue: Vec::new(),
-                frequency: HashMap::new(),
-                page_size: memory_size,
-            }
-        }
-    }
-
-    impl PagingAlgorithm for LeastFrequentlyUsed {
-        fn page_in(&mut self, page: u32) -> bool {
-            if self.page_size != self.queue.len() {
-                if self.queue.contains(&Some(page)) {
-                    // This is only a fail-safe, as the page should not be in the queue, if it is not in the frequency map
-                    let freq = self.frequency.entry(page).or_insert(0);
-                    *freq += 1;
-                    false
-                } else {
-                    self.queue.push(Some(page));
-                    self.frequency.insert(page, 1);
-                    true
-                }
-            } else if self.queue.contains(&Some(page)) {
-                // This is only a fail-safe, as the page should not be in the queue, if it is not in the frequency map
-                let freq = self.frequency.entry(page).or_insert(0);
-                *freq += 1;
-                false
-            } else {
-                let mut min = usize::MAX as u32;
-                let mut min_page = 0;
-                for (page, freq) in self.frequency.iter() {
-                    if *freq < min {
-                        min = *freq;
-                        min_page = *page;
-                    }
-                }
-                self.queue.retain(|x| x != &Some(min_page));
-                self.frequency.remove(&min_page);
-                self.queue.push(Some(page));
-                self.frequency.insert(page, 1);
-                true
-            }
-        }
-    }
-}
-
 pub mod scheduler {
     #[derive(Copy, Clone, Debug)]
     pub struct Process {
@@ -134,7 +31,7 @@ pub mod scheduler {
     }
 
     pub trait Cpu {
-        fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>);
+        fn next_loop(&mut self, arrival: Vec<Process>, timer: u32) -> (u32, Option<u32>);
         fn get_stack(&self) -> &Vec<Process>;
     }
 
@@ -157,7 +54,7 @@ pub mod scheduler {
         ///
         /// # Returns
         /// * (new_timer, Option<pid>) - (u32, Option<u32>) - New timer state and PID of the process, if the process was finished (in previous loop)
-        fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>) {
+        fn next_loop(&mut self, arrival: Vec<Process>, timer: u32) -> (u32, Option<u32>) {
             // Check if the process was done in the previous loop
             // remove process as first step instead of last for logging purposes
             let mut pid = None;
@@ -175,9 +72,7 @@ pub mod scheduler {
                 }
                 // process.turnaround = timer - process.arrival;
             }
-            if let Some(process) = arrival {
-                self.stack.push(process);
-            }
+            self.stack.append(&mut arrival.clone());
             (timer + 1, pid)
         }
 
@@ -205,7 +100,7 @@ pub mod scheduler {
     }
 
     impl Cpu for RoundRobin {
-        fn next_loop(&mut self, arrival: Option<Process>, timer: u32) -> (u32, Option<u32>) {
+        fn next_loop(&mut self, arrival: Vec<Process>, timer: u32) -> (u32, Option<u32>) {
             let mut pid = None;
             let quantum_time = self.quantum_time;
             if let Some(&process) = self.stack.first() {
@@ -232,9 +127,7 @@ pub mod scheduler {
                     self.quantum_timer += 1;
                 }
             }
-            if let Some(process) = arrival {
-                self.stack.push(process);
-            }
+            self.stack.append(&mut arrival.clone()); 
             (timer + 1, pid)
         }
 

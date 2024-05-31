@@ -1,46 +1,85 @@
-mod cpu;
-mod gen;
+use cpu_pager::paging::{FirstInFirstOut, LeastFrequentlyUsed};
+use cpu_scheduler::scheduler::{FirstComeFirstServe, RoundRobin};
 
-// use cpu::algos::{FirstComeFirstServe, RoundRobin};
-// use cpu::object::Process;
-use cpu::paging::{FirstInFirstOut, LeastFrequentlyUsed, PagingAlgorithm};
-use cpu::scheduler::{FirstComeFirstServe, RoundRobin};
-use gen::scheduler_data_generator::Feeder;
+mod cpu_pager;
+mod cpu_scheduler;
+mod pager_gen;
+mod scheduler_gen;
 
-/* fn main() {
-    // let mut feeder = Feeder::new(5, 0, 10, 5.0, 1.0);
-    let mut feeder = Feeder::default();
-    feeder.add_function(Box::new(FirstComeFirstServe::new()));
-    feeder.add_function(Box::new(RoundRobin::new(2)));
-    feeder.feed();
-} */
-
-fn generic_test_data() -> Vec<u32> {
-    vec![1, 2, 3, 2, 4, 2, 1, 3, 2, 1]
-}
+static DEBUG: bool = false;
 
 fn main() {
-    let mut fifo = FirstInFirstOut::new(3);
-    println!("Algorithm: {:?}", fifo);
-    let mut total_page_faults = 0;
-    for page in generic_test_data() {
-        if fifo.page_in(page) {
-            total_page_faults += 1;
-        }
-        println!("Page: {}, State: {:?}", page, fifo)
-    }
-    println!("Total page faults: {}", total_page_faults);
+    let feeders = gen_scheduler_data();
 
-let mut fifo = LeastFrequentlyUsed::new(3);
-    println!("Algorithm: {:?}", fifo);
-    let mut total_page_faults = 0;
-    for page in generic_test_data() {
-        if fifo.page_in(page) {
-            total_page_faults += 1;
-        }
-        println!("Page: {}, State: {:?}", page, fifo)
+    for feeder in feeders {
+        println!("=========================================");
+        println!("======= CPU scheduling algorithms =======");
+        println!("Executing test cases with following data:");
+        println!(
+            "Test data:\n{}",
+            scheduler_gen::scheduler_data_generator::parse_test_data(&feeder.processes)
+        );
+        execute_scheduler_feeder(feeder);
     }
-    println!("Total page faults: {}", total_page_faults);
+
+    let pages = gen_paging_data();
+    for page in pages {
+        println!("=========================================");
+        println!("====== Page replacement algorithms ======");
+        println!("Executing test cases with following data:");
+        println!("{:?}", page);
+        let feeder = pager_gen::paging_data_generator::Feeder::new(page);
+        execute_paging_feeder(feeder);
+    }
+}
+
+fn execute_scheduler_feeder(mut feeder: scheduler_gen::scheduler_data_generator::Feeder) {
+    // let mut feeder = Feeder::new(5, 0, 10, 5.0, 1.0);
+    println!("Algorihms: FirstComeFirstServe, RoundRobin(2), RoundRobin(5)");
+    feeder.add_function(Box::new(FirstComeFirstServe::new()));
+    feeder.add_function(Box::new(RoundRobin::new(2)));
+    feeder.add_function(Box::new(RoundRobin::new(5)));
+    feeder.feed();
+    println!("=========================================");
+}
+
+fn gen_scheduler_data() -> Vec<scheduler_gen::scheduler_data_generator::Feeder> {
+    use scheduler_gen::scheduler_data_generator::Feeder;
+    vec![
+        Feeder::new(25, 0, 100, 5.0, 0.0), // Different arrival times, same burst times
+        Feeder::new(50, 0, 100, 5.0, 1.0),
+        Feeder::new(100, 0, 100, 5.0, 2.0),
+        Feeder::new(25, 0, 0, 5.0, 5.0), // Same arrival times, different burst times
+        Feeder::new(50, 0, 0, 5.0, 5.0),
+        Feeder::new(100, 0, 0, 5.0, 5.0),
+        Feeder::new(25, 0, 100, 5.0, 5.0), // Different arrival times, different burst times
+        Feeder::new(50, 0, 100, 5.0, 5.0),
+        Feeder::new(100, 0, 100, 5.0, 5.0),
+    ]
+}
+
+fn gen_paging_data() -> Vec<Vec<u32>> {
+    use pager_gen::paging_data_generator::generate_page_numbers;
+
+    vec![
+        generate_page_numbers(50, 10.0, 0.0), // only duplicates
+        generate_page_numbers(100, 10.0, 0.0),
+        generate_page_numbers(50, 10.0, 10.0), // low amount of duplicates
+        generate_page_numbers(100, 10.0, 10.0),
+        generate_page_numbers(50, 10.0, 3.0), // high amount of duplicates
+        generate_page_numbers(100, 10.0, 3.0),
+    ]
+}
+
+fn execute_paging_feeder(mut feeder: pager_gen::paging_data_generator::Feeder) {
+    // Test with different page sizes to check for Belady's Anomaly
+    println!("Algorithms: FirstInFirstOut(3), FirstInFirstOut(4), LeastFrequentlyUsed(3), LeastFrequentlyUsed(4)");
+    feeder.add_function(Box::new(FirstInFirstOut::new(3)));
+    feeder.add_function(Box::new(FirstInFirstOut::new(4)));
+    feeder.add_function(Box::new(LeastFrequentlyUsed::new(3)));
+    feeder.add_function(Box::new(LeastFrequentlyUsed::new(4)));
+    feeder.feed();
+    println!("=========================================");
 }
 
 // ############################
