@@ -1,5 +1,7 @@
 pub mod scheduler {
-    #[derive(Copy, Clone, Debug)]
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
     pub struct Process {
         pub pid: u32,
         pub arrival: u32,
@@ -127,7 +129,7 @@ pub mod scheduler {
                     self.quantum_timer += 1;
                 }
             }
-            self.stack.append(&mut arrival.clone()); 
+            self.stack.append(&mut arrival.clone());
             (timer + 1, pid)
         }
 

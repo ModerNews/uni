@@ -1,4 +1,6 @@
 pub mod scheduler_data_generator {
+    use rand_distr::Uniform;
+    use serde_json::Value;
     use std::any::Any;
 
     // use log::{debug, info, warn};
@@ -25,9 +27,16 @@ pub mod scheduler_data_generator {
             panic!("range_start must be less than range_end");
         }
         let mut rng = thread_rng();
-        let mut numbers: Vec<u32> = (range_start..range_end).collect();
-        numbers.shuffle(&mut rng);
-        numbers.into_iter().take(n).collect()
+        if range_start == range_end {
+            vec![range_start; n]
+        } else {
+            let mut numbers: Vec<u32> = Uniform::new(range_start, range_end)
+                .sample_iter(&mut rng)
+                .take(n)
+                .collect();
+            numbers.sort();
+            numbers
+        }
     }
 
     fn generic_test_data() -> Vec<Process> {
@@ -128,6 +137,69 @@ pub mod scheduler_data_generator {
             }
         }
 
+        /// Import the JSON file and deserialize it into array of Processes
+        /// Then load it into new Feeder object
+        ///
+        /// # Arguments
+        /// * `filename` - A string containing the JSON filename or path
+        ///
+        /// # Returns
+        /// * A Feeder object with the processes loaded from the JSON file
+        pub fn import_from_file(filename: String) -> Feeder {
+            let json_string = std::fs::read_to_string(&filename);
+            let json_string = match json_string {
+                Ok(json_string) => json_string,
+                Err(e) => {
+                    panic!("Error reading file: {}", e);
+                }
+            };
+            Feeder::from_deserialized_processes(json_string)
+        }
+
+        /// Deserialize the JSON-standard String into a Vec<Process>
+        /// And load it into new Feeder object
+        ///
+        /// # Arguments
+        /// * `json` - A string containing the JSON
+        ///
+        /// # Returns
+        /// * A Feeder object with the processes loaded from the JSON string
+        pub fn from_deserialized_processes(json: String) -> Feeder {
+            let processes: Vec<Process> = serde_json::from_str(&json).unwrap();
+            Feeder {
+                processes,
+                functions: Vec::new(),
+            }
+        }
+
+        /// Serialize the processes into a JSON-standard String
+        ///
+        /// # Returns
+        /// * A string containing the JSON
+        pub fn to_serialized_processes(&self) -> String {
+            serde_json::to_string(&self.processes).unwrap()
+        }
+
+        /// Export the processes into a JSON file
+        ///
+        /// # Arguments
+        /// * `filename` - A string containing the JSON filename or path
+        ///
+        /// # Returns
+        /// * None - Everything is written to file successfully and function exits, otherwise it panics
+        pub fn export_to_file(&self, filename: String) {
+            let json_string = self.to_serialized_processes();
+            let result = std::fs::write(&filename, json_string);
+            match result {
+                Ok(_) => {
+                    println!("File saved successfully");
+                }
+                Err(e) => {
+                    panic!("Error writing file: {}", e);
+                }
+            }
+        }
+
         pub fn add_function(&mut self, f: Box<dyn Cpu>) {
             self.functions.push(f);
         }
@@ -138,8 +210,10 @@ pub mod scheduler_data_generator {
             output.sort_by(|a, b| a.pid.cmp(&b.pid));
             let mut result = String::new();
             result.push_str("PID;Arrival;Burst;Turnaround;Waiting\n");
-            let avg_turnaround = output.iter().map(|x| x.turnaround).sum::<u32>() as f64 / output.len() as f64;
-            let avg_waiting = output.iter().map(|x| x.waiting).sum::<u32>() as f64 / output.len() as f64;
+            let avg_turnaround =
+                output.iter().map(|x| x.turnaround).sum::<u32>() as f64 / output.len() as f64;
+            let avg_waiting =
+                output.iter().map(|x| x.waiting).sum::<u32>() as f64 / output.len() as f64;
             for entry in output {
                 result.push_str(&format!(
                     "{};{};{};{};{}\n",
