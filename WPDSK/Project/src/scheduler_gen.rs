@@ -107,6 +107,15 @@ pub mod scheduler_data_generator {
         }
     }
 
+    impl From<Vec<Process>> for Feeder {
+        fn from(processes: Vec<Process>) -> Self {
+            Feeder {
+                processes,
+                functions: Vec::new(),
+            }
+        }
+    }
+
     impl Feeder {
         pub fn new(
             n: usize,
@@ -227,12 +236,9 @@ pub mod scheduler_data_generator {
             result
         }
 
-        pub fn feed(&mut self) {
+        pub fn feed(&mut self) -> Vec<String> {
+            let mut outputs = Vec::new();
             for cpu in self.functions.iter_mut() {
-                // println!(
-                //     "Preparing to test for {:?}",
-                //     std::any::type_name_of_val(function)
-                // );                let mut timer = 0; // Reset timer for each Algorithm
                 let mut timer = 0; // Reset timer for each Algorithm
                 let mut arrivals = self.processes.clone();
                 let mut output: Vec<OutputProcessEntry> = Vec::new();
@@ -280,8 +286,9 @@ pub mod scheduler_data_generator {
                         });
                     }
                 }
-                println!("{}", Feeder::parse_output(output));
+                outputs.push(Feeder::parse_output(output));
             }
+            outputs
         }
     }
 }
