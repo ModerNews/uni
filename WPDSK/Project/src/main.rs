@@ -1,6 +1,6 @@
 use cpu_pager::paging::{FirstInFirstOut, LeastFrequentlyUsed};
 use cpu_scheduler::scheduler::{FirstComeFirstServe, RoundRobin};
-use scheduler_gen::scheduler_data_generator::Feeder;
+// use scheduler_gen::scheduler_data_generator::Feeder;
 use std::fs;
 mod cpu_pager;
 mod cpu_scheduler;
@@ -10,14 +10,16 @@ mod scheduler_gen;
 
 static DEBUG: bool = false;
 static GENERATE_NEW_DATA: bool = true;
+static LOAD_EXISTING_DATA: bool = false;
 
 fn main() {
-    let feeders: Vec<Feeder>;
+    let mut feeders: Vec<scheduler_gen::scheduler_data_generator::Feeder> = Vec::new();
     if GENERATE_NEW_DATA {
-        feeders = gen_scheduler_data();
+        feeders.append(&mut gen_scheduler_data());
         export_scheduler_data(&feeders);
-    } else {
-        feeders = import_scheduler_data("./tests/scheduler");
+    }
+    if LOAD_EXISTING_DATA {
+        feeders.append(&mut import_scheduler_data("./tests/scheduler"));
     }
     let mut outputs = Vec::new();
     for feeder in feeders {
@@ -33,14 +35,19 @@ fn main() {
         println!("=========================================");
     }
 
-    // let pages = gen_paging_data();
-    // let mut feeders = Vec::new();
-    // for page_set in pages {
-    //     let feeder = pager_gen::paging_data_generator::Feeder::new(page_set);
-    //     feeders.push(feeder);
-    // }
-    // export_paging_data(&feeders);
-    let feeders = import_paging_data("./tests/paging");
+    let mut feeders: Vec<pager_gen::paging_data_generator::Feeder> = Vec::new();
+    if GENERATE_NEW_DATA {
+        let pages = gen_paging_data();
+        for page_set in pages {
+            let feeder = pager_gen::paging_data_generator::Feeder::new(page_set);
+            feeders.push(feeder);
+        }
+
+        export_paging_data(&feeders);
+    }
+    if LOAD_EXISTING_DATA {
+        feeders.append(&mut import_paging_data("./tests/paging"));
+    }
     for feeder in feeders {
         println!("=========================================");
         println!("====== Page replacement algorithms ======");
@@ -62,12 +69,14 @@ fn execute_scheduler_feeder(
 }
 
 fn gen_scheduler_data() -> Vec<scheduler_gen::scheduler_data_generator::Feeder> {
+    use scheduler_gen::scheduler_data_generator::Feeder;
     vec![
-        Feeder::new(100, 0, 100, 5.0, 2.0), // Different arrival times, same burst times
+        Feeder::new(100, 0, 100, 5.0, 0.0), // Different arrival times, same burst times
         Feeder::new(100, 0, 0, 5.0, 4.0),   // Same (0) arrival times, different burst times
         Feeder::new(100, 0, 100, 5.0, 4.0), // Different arrival times, different low burst times
         Feeder::new(100, 0, 100, 20.0, 5.0), // Different arrival times, different high burst times (low differences in burst times)
-        Feeder::from(custom_gen::low_burst_with_spikes(100)), // Low burst times with spikes
+        Feeder::from(custom_gen::low_burst_with_spikes(100)), // Low burst times with spikes (should show the starving problem in FCFS)
+        Feeder::from(custom_gen::high_burst_first_then_low(100)), // Single high burst time, rest low burst times (should show the starving problem in FCFS)
     ]
 }
 
@@ -83,6 +92,7 @@ fn find_files(test_dir: &str) -> Vec<String> {
 }
 
 fn import_scheduler_data(test_dir: &str) -> Vec<scheduler_gen::scheduler_data_generator::Feeder> {
+    use scheduler_gen::scheduler_data_generator::Feeder;
     let mut feeders = Vec::new();
     for file_name in find_files(test_dir) {
         let feeder = Feeder::import_from_file(file_name);
@@ -91,36 +101,26 @@ fn import_scheduler_data(test_dir: &str) -> Vec<scheduler_gen::scheduler_data_ge
     feeders
 }
 
-fn export_scheduler_data(feeders: &Vec<scheduler_gen::scheduler_data_generator::Feeder>) {
-    let mut i = 0;
-    for feeder in feeders {
+fn export_scheduler_data(feeders: &[scheduler_gen::scheduler_data_generator::Feeder]) {
+    for (i, feeder) in feeders.iter().enumerate() {
         feeder.export_to_file(format!("test_data_scheduler_{i:02}.json").to_string());
-        i += 1;
     }
 }
 
-fn export_scheduler_outputs(outputs: &Vec<Vec<String>>) {
-    let mut i = 0;
-    for output in outputs {
+fn export_scheduler_outputs(outputs: &[Vec<String>]) {
+    for (i, output) in outputs.iter().enumerate() {
         let mut output_str = String::new();
         for line in output {
             output_str.push_str(line);
-            output_str.push_str("\n");
+            output_str.push('\n');
         }
-        fs::write(
-            format!("output_scheduler_{i:02}.csv").to_string(),
-            output_str,
-        )
-        .unwrap();
-        i += 1;
+        fs::write(format!("output_scheduler_{i:02}.csv"), output_str).unwrap();
     }
 }
 
-fn export_paging_data(feeders: &Vec<pager_gen::paging_data_generator::Feeder>) {
-    let mut i = 0;
-    for feeder in feeders {
+fn export_paging_data(feeders: &[pager_gen::paging_data_generator::Feeder]) {
+    for (i, feeder) in feeders.iter().enumerate() {
         feeder.export_to_file(format!("test_data_paging_{i:02}.json").to_string());
-        i += 1;
     }
 }
 
@@ -137,22 +137,21 @@ fn gen_paging_data() -> Vec<Vec<u32>> {
     use pager_gen::paging_data_generator::generate_page_numbers;
 
     vec![
-        generate_page_numbers(50, 10.0, 0.0), // only duplicates
-        generate_page_numbers(100, 10.0, 0.0),
-        generate_page_numbers(50, 10.0, 10.0), // low amount of duplicates
-        generate_page_numbers(100, 10.0, 10.0),
-        generate_page_numbers(50, 10.0, 3.0), // high amount of duplicates
-        generate_page_numbers(100, 10.0, 3.0),
+        custom_gen::frequent_page(500, 200, 10.0, 3.0), // One page is repeated often
+        custom_gen::belady_anomaly(50),               // Known case of Belady's Anomaly, extended
+        custom_gen::repeating_pages_sequence(&[1, 2, 3, 4, 5], 500), // Repeating sequence
+        generate_page_numbers(500, 3.0, 2.0),          // low amount of duplicates, completly random
+        generate_page_numbers(500, 10.0, 5.0), // high amount of duplicates, completly random
     ]
 }
 
 fn execute_paging_feeder(mut feeder: pager_gen::paging_data_generator::Feeder) {
     // Test with different page sizes to check for Belady's Anomaly
-    println!("Algorithms: FirstInFirstOut(3), FirstInFirstOut(4), LeastFrequentlyUsed(3), LeastFrequentlyUsed(4)");
-    feeder.add_function(Box::new(FirstInFirstOut::new(3)));
-    feeder.add_function(Box::new(FirstInFirstOut::new(4)));
-    feeder.add_function(Box::new(LeastFrequentlyUsed::new(3)));
-    feeder.add_function(Box::new(LeastFrequentlyUsed::new(4)));
+    println!("Algorithms: FirstInFirstOut(n), LeastFrequentlyUsed(n), where n is in range 2 to 5");
+    for n in 2..=5 {
+        feeder.add_function(Box::new(FirstInFirstOut::new(n)));
+        feeder.add_function(Box::new(LeastFrequentlyUsed::new(n)));
+    }
     feeder.feed();
     println!("=========================================");
 }
