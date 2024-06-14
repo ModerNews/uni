@@ -1,9 +1,5 @@
 pub mod paging_data_generator {
-    use std::any::Any;
-
-    // use log::{debug, info, warn};
     use rand::prelude::*;
-    use rand::thread_rng;
     use rand_distr::{Distribution, Normal};
 
     use crate::cpu_pager::paging::PagingAlgorithm;
@@ -53,7 +49,7 @@ pub mod paging_data_generator {
         /// # Returns
         /// * A Feeder object with the processes loaded from the JSON file
         pub fn import_from_file(filename: String) -> Feeder {
-            let json_string = std::fs::read_to_string(&filename);
+            let json_string = std::fs::read_to_string(filename);
             let json_string = match json_string {
                 Ok(json_string) => json_string,
                 Err(e) => {
@@ -96,7 +92,7 @@ pub mod paging_data_generator {
         /// * None - Everything is written to file successfully and function exits, otherwise it panics
         pub fn export_to_file(&self, filename: String) {
             let json_string = self.to_serialized_pages();
-            let result = std::fs::write(&filename, json_string);
+            let result = std::fs::write(filename, json_string);
             match result {
                 Ok(_) => {
                     println!("File saved successfully");

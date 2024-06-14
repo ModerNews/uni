@@ -1,5 +1,6 @@
 pub mod paging {
-    use std::{collections::HashMap, usize};
+    use indexmap::IndexMap;
+    use std::usize;
 
     pub trait PagingAlgorithm {
         fn page_in(&mut self, page: u32) -> bool;
@@ -50,7 +51,7 @@ pub mod paging {
     #[derive(Debug)]
     pub struct LeastFrequentlyUsed {
         pub queue: Vec<Option<u32>>,
-        pub frequency: HashMap<u32, u32>,
+        pub frequency: IndexMap<u32, u32>,
         pub page_size: usize,
     }
 
@@ -58,7 +59,7 @@ pub mod paging {
         pub fn new(memory_size: usize) -> LeastFrequentlyUsed {
             LeastFrequentlyUsed {
                 queue: Vec::new(),
-                frequency: HashMap::new(),
+                frequency: IndexMap::new(),
                 page_size: memory_size,
             }
         }
@@ -68,8 +69,8 @@ pub mod paging {
         fn page_in(&mut self, page: u32) -> bool {
             if self.page_size != self.queue.len() && !self.queue.contains(&Some(page)) {
                 self.queue.push(Some(page));
-                    self.frequency.insert(page, 1);
-                    true
+                self.frequency.insert(page, 1);
+                true
             } else if self.queue.contains(&Some(page)) {
                 // This is only a fail-safe, as the page should not be in the queue, if it is not in the frequency map
                 let freq = self.frequency.entry(page).or_insert(0);
@@ -78,6 +79,7 @@ pub mod paging {
             } else {
                 let mut min = usize::MAX as u32;
                 let mut min_page = 0;
+                // println!("{:?} - before operation", self.frequency);
                 for (page, freq) in self.frequency.iter() {
                     if *freq < min {
                         min = *freq;
@@ -85,9 +87,11 @@ pub mod paging {
                     }
                 }
                 self.queue.retain(|x| x != &Some(min_page));
-                self.frequency.remove(&min_page);
+                self.frequency.shift_remove(&min_page);
+                // println!("{:?} - after remove", self.frequency);
                 self.queue.push(Some(page));
                 self.frequency.insert(page, 1);
+                // println!("{:?} - after insert", self.frequency);
                 true
             }
         }

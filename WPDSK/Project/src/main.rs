@@ -9,10 +9,20 @@ mod pager_gen;
 mod scheduler_gen;
 
 static DEBUG: bool = false;
-static GENERATE_NEW_DATA: bool = true;
-static LOAD_EXISTING_DATA: bool = false;
+static GENERATE_NEW_DATA: bool = false;
+static LOAD_EXISTING_DATA: bool = true;
 
 fn main() {
+    test_main();
+    let mut data = vec![
+        "123", "234", "345", "456", "567", "678", "789", "890", "901", "012",
+    ];
+    let bind = data.iter().map(|&x| x.chars().rev().collect::<String>()).collect::<Vec<String>>();
+    let output = bind.join("\n");
+    println!("{}", output);
+}
+
+fn test_main() {
     let mut feeders: Vec<scheduler_gen::scheduler_data_generator::Feeder> = Vec::new();
     if GENERATE_NEW_DATA {
         feeders.append(&mut gen_scheduler_data());
@@ -135,12 +145,14 @@ fn import_paging_data(test_dir: &str) -> Vec<pager_gen::paging_data_generator::F
 
 fn gen_paging_data() -> Vec<Vec<u32>> {
     use pager_gen::paging_data_generator::generate_page_numbers;
-
+    let mut extended_sequence = generate_page_numbers(100, 3.0, 2.0);
+    extended_sequence.extend(custom_gen::repeating_pages_sequence(&[1, 2, 3, 4, 5], 400));
     vec![
         custom_gen::frequent_page(500, 200, 10.0, 3.0), // One page is repeated often
-        custom_gen::belady_anomaly(50),               // Known case of Belady's Anomaly, extended
+        custom_gen::belady_anomaly(50),                 // Known case of Belady's Anomaly, extended
         custom_gen::repeating_pages_sequence(&[1, 2, 3, 4, 5], 500), // Repeating sequence
-        generate_page_numbers(500, 3.0, 2.0),          // low amount of duplicates, completly random
+        extended_sequence, // Repeating sequence prepped with random numbers (to check for LFU recovery time)
+        generate_page_numbers(500, 3.0, 2.0), // low amount of duplicates, completly random
         generate_page_numbers(500, 10.0, 5.0), // high amount of duplicates, completly random
     ]
 }
